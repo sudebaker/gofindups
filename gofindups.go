@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	
 
 	"golang.org/x/crypto/blake2b"
 )
@@ -43,9 +42,10 @@ func calculateHash(fpath string) (string, error) {
 	hash := hasher.Sum(nil)
 	return fmt.Sprintf("%x", hash), nil
 }
-func findDuplicates(directorioRaiz string) error {
-	hashes := make(map[string]string)
 
+func findDuplicates(directorioRaiz string) ([]string, error) {
+	hashes := make(map[string]string)
+	dupes := []string{}
 	err := filepath.Walk(directorioRaiz, func(ruta string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error al acceder a la ruta %q: %v\n", ruta, err)
@@ -61,8 +61,10 @@ func findDuplicates(directorioRaiz string) error {
 			if rutaExistente, ok := hashes[hash]; ok {
 				// Verificar tamaño del archivo
 				existingFileInfo, err := os.Stat(rutaExistente)
-					if err != nil { return err }
-				
+				if err != nil {
+					return err
+				}
+
 				if info.Size() == existingFileInfo.Size() {
 					if info.Size() == existingFileInfo.Size() {
 						// Calcular hash completo si los tamaños coinciden
@@ -70,6 +72,7 @@ func findDuplicates(directorioRaiz string) error {
 						hashCompleto2, _ := calculateHash(rutaExistente)
 						if hashCompleto1 == hashCompleto2 {
 							fmt.Printf("Duplicado encontrado: %s y %s\n", ruta, rutaExistente)
+							dupes = append(dupes, rutaExistente)
 						}
 					}
 				}
@@ -82,7 +85,7 @@ func findDuplicates(directorioRaiz string) error {
 	if err != nil {
 		log.Printf("Error al recorrer el directorio %q: %v\n", directorioRaiz, err)
 	}
-	return nil
+	return dupes, nil
 }
 
 func main() {
@@ -92,9 +95,14 @@ func main() {
 		os.Exit(1)
 	}
 	directorioRaiz := os.Args[1]
-	err := findDuplicates(directorioRaiz)
+	dupes, err := findDuplicates(directorioRaiz)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	} else {
+		fmt.Println("Duplicados encontrados:")
+		for _, dupe := range dupes {
+			fmt.Println(dupe)
+		}
 	}
 }
