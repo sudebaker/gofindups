@@ -10,6 +10,15 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+type FileInfo struct {
+	Size int64
+	Hash string
+}
+
+var AllowedExtensions = []string{
+	".mp3", ".wav", ".flac", ".ogg",
+}
+
 func calculateHash(fpath string) (string, error) {
 	/* Calculate the hash of a file using the BLAKE2b algorithm.
 	 * fpath: the path to the file to hash.
@@ -44,47 +53,58 @@ func calculateHash(fpath string) (string, error) {
 }
 
 func findDuplicates(directorioRaiz string) ([]string, error) {
-	hashes := make(map[string]string)
+	hashes := make(map[string]FileInfo)
+	filesToCheck := []string{}
 	dupes := []string{}
+
 	err := filepath.Walk(directorioRaiz, func(ruta string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("Error al acceder a la ruta %q: %v\n", ruta, err)
-			return nil
+			return err
 		}
-		if !info.IsDir() && (filepath.Ext(ruta) == ".mp3" || filepath.Ext(ruta) == ".wav" || filepath.Ext(ruta) == ".flac") {
-			hash, err := calculateHash(ruta)
-			if err != nil {
-				log.Printf("Error al calcular el hash del archivo %q: %v\n", ruta, err)
-				return nil
+
+		if !info.IsDir() {
+			ext := filepath.Ext(ruta)
+			isAllowed := false
+			for _, allowedExt := range AllowedExtensions { // Iterate through allowed extensions
+				if ext == allowedExt {
+					isAllowed = true
+					break // Exit loop once a match is found
+				}
 			}
-
-			if rutaExistente, ok := hashes[hash]; ok {
-				// Verificar tamaño del archivo
-				existingFileInfo, err := os.Stat(rutaExistente)
-				if err != nil {
-					return err
-				}
-
-				if info.Size() == existingFileInfo.Size() {
-					if info.Size() == existingFileInfo.Size() {
-						// Calcular hash completo si los tamaños coinciden
-						hashCompleto1, _ := calculateHash(ruta)
-						hashCompleto2, _ := calculateHash(rutaExistente)
-						if hashCompleto1 == hashCompleto2 {
-							fmt.Printf("Duplicado encontrado: %s y %s\n", ruta, rutaExistente)
-							dupes = append(dupes, rutaExistente)
-						}
-					}
-				}
-			} else {
-				hashes[hash] = ruta
+			if isAllowed {
+				filesToCheck = append(filesToCheck, ruta)
 			}
 		}
 		return nil
 	})
+
 	if err != nil {
-		log.Printf("Error al recorrer el directorio %q: %v\n", directorioRaiz, err)
+		return nil, err
 	}
+
+	// Now process filesToCheck
+	for _, file := range filesToCheck {
+		info, err := os.Stat(file)
+		if err != nil {
+			log.Printf("Error getting FileInfo: %v\n", err)
+			continue // Skip to the next file
+		}
+
+		hash, err := calculateHash(file)
+		if err != nil {
+			log.Printf("Error calculating hash: %v\n", err)
+			continue // Skip if hash calculation fails
+		}
+
+		if existingFileInfo, ok := hashes[file]; ok {
+			if info.Size() == existingFileInfo.Size && hash == existingFileInfo.Hash {
+				dupes = append(dupes, file)
+			}
+		} else {
+			hashes[file] = FileInfo{Size: info.Size(), Hash: hash}
+		}
+	}
+
 	return dupes, nil
 }
 
