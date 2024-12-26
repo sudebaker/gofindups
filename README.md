@@ -1,2 +1,2 @@
 # gofindups
-Find duplicate audio files recursively
+Find and remove duplicate audio files recursively.
