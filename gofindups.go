@@ -99,10 +99,32 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
-	} else {
-		fmt.Println("Duplicados encontrados:")
-		for _, dupe := range dupes {
-			fmt.Println(dupe)
+	}
+	if len(dupes) == 0 {
+		fmt.Println("No se encontraron duplicados.")
+		return
+	}
+	fmt.Println("Duplicados encontrados:")
+	for _, dup := range dupes {
+		fmt.Println(dup)
+	}
+	fmt.Println("Desea borrar los duplicados? (s/n)")
+	var yesno rune
+	_, err = fmt.Scanf("%c", &yesno)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	if yesno == 's' || yesno == 'S' {
+		for _, dup := range dupes {
+			err := os.Remove(dup)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
+		fmt.Println("Duplicados eliminados.")
+	} else {
+		fmt.Println("Operación cancelada.")
 	}
 }
