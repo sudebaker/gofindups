@@ -59,7 +59,7 @@ func findDuplicates(directorioRaiz string) ([]string, error) {
 
 	err := filepath.Walk(directorioRaiz, func(ruta string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			log.Printf("Error accessing path %q: %v\n", ruta, err)
 		}
 
 		if !info.IsDir() {
@@ -96,13 +96,11 @@ func findDuplicates(directorioRaiz string) ([]string, error) {
 			continue // Skip if hash calculation fails
 		}
 
-		if existingFileInfo, ok := hashes[file]; ok {
-			if info.Size() == existingFileInfo.Size && hash == existingFileInfo.Hash {
-				dupes = append(dupes, file)
-			}
-		} else {
-			hashes[file] = FileInfo{Size: info.Size(), Hash: hash}
-		}
+        if _, ok := hashes[hash]; ok {
+            dupes = append(dupes, file)
+        } else {
+            hashes[hash] = FileInfo{Size: info.Size(), Hash: hash}
+        }
 	}
 
 	return dupes, nil
