@@ -10,11 +10,6 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-type FileInfo struct {
-	Size int64
-	Hash string
-}
-
 var AllowedExtensions = []string{
 	".mp3", ".wav", ".flac", ".ogg",
 }
@@ -53,9 +48,9 @@ func calculateHash(fpath string) (string, error) {
 }
 
 func findDuplicates(directorioRaiz string) ([]string, error) {
-	hashes := make(map[string]FileInfo)
-	filesToCheck := []string{}
+	filesBySize := make(map[int64][]string)
 	dupes := []string{}
+	hashes := make(map[string]string) // map from hash to file path
 
 	err := filepath.Walk(directorioRaiz, func(ruta string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -65,14 +60,14 @@ func findDuplicates(directorioRaiz string) ([]string, error) {
 		if !info.IsDir() {
 			ext := filepath.Ext(ruta)
 			isAllowed := false
-			for _, allowedExt := range AllowedExtensions { // Iterate through allowed extensions
+			for _, allowedExt := range AllowedExtensions {
 				if ext == allowedExt {
 					isAllowed = true
-					break // Exit loop once a match is found
+					break
 				}
 			}
 			if isAllowed {
-				filesToCheck = append(filesToCheck, ruta)
+				filesBySize[info.Size()] = append(filesBySize[info.Size()], ruta)
 			}
 		}
 		return nil
@@ -82,25 +77,26 @@ func findDuplicates(directorioRaiz string) ([]string, error) {
 		return nil, err
 	}
 
-	// Now process filesToCheck
-	for _, file := range filesToCheck {
-		info, err := os.Stat(file)
-		if err != nil {
-			log.Printf("Error getting FileInfo: %v\n", err)
-			continue // Skip to the next file
+
+
+	for _, files := range filesBySize {
+		if len(files) < 2 {
+			continue // no duplicates possible if less than 2 files of the same size
 		}
 
-		hash, err := calculateHash(file)
-		if err != nil {
-			log.Printf("Error calculating hash: %v\n", err)
-			continue // Skip if hash calculation fails
-		}
+		for _, file := range files {
+			hash, err := calculateHash(file)
+			if err != nil {
+				log.Printf("Error calculating hash: %v\n", err)
+				continue
+			}
 
-        if _, ok := hashes[hash]; ok {
-            dupes = append(dupes, file)
-        } else {
-            hashes[hash] = FileInfo{Size: info.Size(), Hash: hash}
-        }
+			if _, ok := hashes[hash]; ok {
+				dupes = append(dupes, file)
+			} else {
+				hashes[hash] = file
+			}
+		}
 	}
 
 	return dupes, nil
@@ -137,12 +133,10 @@ func main() {
 		for _, dup := range dupes {
 			err := os.Remove(dup)
 			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+				fmt.Printf("Error al borrar %s: %v\n", dup, err)
+			} else {
+				fmt.Printf("Borrado %s\n", dup)
 			}
 		}
-		fmt.Println("Duplicados eliminados.")
-	} else {
-		fmt.Println("Operación cancelada.")
 	}
 }
