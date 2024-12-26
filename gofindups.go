@@ -118,7 +118,7 @@ func main() {
 		fmt.Println("No se encontraron duplicados.")
 		return
 	}
-	fmt.Println("Duplicados encontrados:")
+	fmt.Printf("Duplicados encontrados: %d\n", len(dupes))
 	for _, dup := range dupes {
 		fmt.Println(dup)
 	}
